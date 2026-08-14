@@ -39,7 +39,7 @@ Las organizaciones despliegan aplicaciones y servidores de forma acelerada, much
 
 ### 1.3 Alcance y Reglas de Compromiso (Rules of Engagement)
 
-- El laboratorio se ejecuta **exclusivamente en una red aislada** (`vmnet NAT` en VMware o `NAT` en VirtualBox).
+- El laboratorio se ejecuta **exclusivamente en una red aislada** (`vmnet NAT` en HyperV).
 - Los únicos sistemas implicados son la VM atacante (Kali) y la VM objetivo (Metasploitable 2).
 - **No se ejecutan pruebas contra terceros**, IPs públicas ni infraestructuras ajenas.
 - Todo tráfico permanece dentro del host virtualizado; el aislamiento evita contaminar la red física del laboratorio/empresa.
@@ -49,10 +49,10 @@ Las organizaciones despliegan aplicaciones y servidores de forma acelerada, much
 
 | Recurso | Detalle |
 |---------|---------|
-| Hypervisor | VirtualBox (recomendado) o VMware Workstation/Player. |
+| Hypervisor | HyperV (Utilizado), VirtualBox (recomendado) o VMware Workstation/Player. |
 | VM Atacante | **Kali Linux** 2024.x (o posterior), 2 GB RAM, 2 CPUs. |
 | VM Objetivo | **Metasploitable 2** (VMware image), 512 MB–1 GB RAM, 1 CPU. |
-| Red | Modo NAT aislado (VirtualBox: `NAT`; VMware: `VMnet8` con DHCP). |
+| Red | Modo NAT aislado (HyperV: `NAT` VirtualBox: `NAT`; VMware: `VMnet8` con DHCP). |
 | Host | Windows/Linux/macOS con soporte de virtualización (VT-x/AMD-V). |
 
 ### 1.5 Diagrama Lógico de Red
@@ -60,9 +60,9 @@ Las organizaciones despliegan aplicaciones y servidores de forma acelerada, much
 ```mermaid
 flowchart LR
     subgraph "Host Físico (Hipervisor)"
-        subgraph "Red NAT aislada 10.0.2.0/24"
-            K["Kali Linux (Atacante)<br/>10.0.2.4<br/>eth0: 10.0.2.4/24"]
-            T["Target VM - Metasploitable 2<br/>10.0.2.5<br/>eth0: 10.0.2.5/24"]
+        subgraph "Red NAT aislada 192.168.50.0/24"
+            K["Kali Linux (Atacante)<br/>192.168.50.10<br/>eth0: 192.168.50.10/24"]
+            T["Target VM - Metasploitable 2<br/>192.168.50.20<br/>eth0: 192.168.50.20/24"]
         end
     end
     K -- "Nmap / HTTP / FTP / SSH" --> T
@@ -71,20 +71,20 @@ flowchart LR
 
 > **Nota de seguridad:** No conectar esta red a internet ni compartirla con el adaptador físico. La red NAT del hipervisor no permite acceso entrante desde la LAN física, lo que mantiene el laboratorio aislado.
 
-> **`[CAPTURA_01: Diagrama de red o configuración de red en VirtualBox/VMware — se debe visualizar la pestaña de Red de la VM objetivo configurada en modo NAT (adaptador puente desactivado) y/o el diagrama lógico anterior exportado en la herramienta de documentación (p. ej. Draw.io / Excalidraw)]`**
+> **`CAPTURA_01: Configuración de red en HyperV — visualización de la pestaña de Red de la VM objetivo configurada en modo NAT (adaptador puente desactivado)`**
 
----
+![alt text](<Captura de pantalla 2026-08-14 164807.png>)
 
 ## 2. FASE 1: DESPLIEGUE Y CONFIGURACIÓN DEL ENTORNO
 
 ### 2.1 Configuración de Red de las Máquinas Virtuales
 
-**VirtualBox — VM Metasploitable 2:**
+**HyperV (Caso actual) — VM Metasploitable 2:**
 
 1. Abrir `Configuración → Red`.
 2. Seleccionar **Adaptador 1** → **Conectado a: NAT**.
 3. Marcar **Habilitar adaptador de red**.
-4. (Opcional) En `Avanzado → Reenvío de puertos` no agregar reglas; no son necesarias en este laboratorio.
+4. (Opcional) En `Avanzado → Reenvío de puertos` no se agregan reglas; no son necesarias en este laboratorio.
 
 **VMware — VM Metasploitable 2:**
 
@@ -97,7 +97,10 @@ flowchart LR
 - Usar **la misma red NAT** que la VM objetivo para garantizar el segmento aislado compartido.
 - Si VMware: `VM → Settings → Network Adapter → NAT`.
 
-> **`[CAPTURA_01: Diagrama de red o configuración de red en VirtualBox/VMware — ver imagen en la Sección 1.5, pestaña "Red" con adaptador tipo NAT seleccionado]`**
+> **`CAPTURA_02: Configuración de red en HyperV — ver imagen en la Sección 1.5, pestaña "Red" con adaptador tipo NAT seleccionado`**
+
+![alt text](<Captura de pantalla 2026-08-14 165336.png>)
+
 
 ### 2.2 Inicio de Sesión en la VM Objetivo
 
@@ -128,7 +131,10 @@ Salida esperada (fragmento):
     inet 10.0.2.4/24 brd 10.0.2.255 scope global dynamic eth0
 ```
 
-> **`[CAPTURA_02: Verificación de IP en Kali Linux — terminal mostrando la salida de `ip a` con la IP 10.0.2.4 visible en eth0]`**
+> **`CAPTURA_03: Verificación de IP en Kali Linux — terminal mostrando la salida de `ip a` con la IP 192.168.50.10 visible en eth0`**
+
+![alt text](<Captura de pantalla 2026-08-14 165809.png>)
+
 
 Comprueba la tabla de rutas y DNS para validar que la red está operativa:
 
@@ -137,22 +143,20 @@ ip route
 cat /etc/resolv.conf
 ```
 
-> **Nota:** No es necesario (ni recomendado) configurar IP estática en la red NAT; el DHCP del NAT aísla el laboratorio y evita conflictos. Si prefieres IP estática, configúrala dentro del rango NAT (p. ej. `10.0.2.4/24`, gateway `10.0.2.1`, DNS `10.0.2.1` o `8.8.8.8`).
-
 ### 2.4 Descubrimiento de la Máquina Objetivo en la Red
 
 Realiza un barrido de la subred para localizar la VM objetivo:
 
 ```bash
-ping -c 3 10.0.2.5
+ping -c 4 192.168.50.20
 ```
 
-**Explicación:** `-c 3` limita el envío a 3 paquetes ICMP Echo Request. Si la VM objetivo responde, la conectividad L3 está confirmada.
+**Explicación:** `-c 4` limita el envío a 4 paquetes ICMP Echo Request. Si la VM objetivo responde, la conectividad está confirmada.
 
 O barre la subred completa (más útil si no conoces la IP exacta):
 
 ```bash
-nmap -sn 10.0.2.0/24
+nmap -sn 192.168.50.0/24
 ```
 
 **Explicación:** `nmap -sn` (ping sweep) descubre hosts activos sin escanear puertos. Ideal para identificar la IP de Metasploitable en la red NAT.
@@ -161,19 +165,22 @@ Salida esperada:
 
 ```text
 Starting Nmap 7.94 ( https://nmap.org ) at 2026-08-14 10:00 UTC
-Nmap scan report for 10.0.2.5
+Nmap scan report for 192.168.50.20
 Host is up (0.0012s latency).
 ```
 
-> **`[CAPTURA_03: Conectividad exitosa con la máquina objetivo — respuesta al ping y/o detección del host 10.0.2.5 en el ping sweep de Nmap]`**
+> **`CAPTURA_04: Conectividad exitosa con la máquina objetivo — respuesta al ping y/o detección del host 192.168.50.20 en el ping sweep de Nmap`**
+
+![alt text](<Captura de pantalla 2026-08-14 171119.png>)
+
 
 ### 2.5 Checklist de la Fase 1
 
 - [ ] Ambos adaptadores en modo **NAT** (mismo segmento aislado).
 - [ ] Kali arranca y obtiene IP vía DHCP NAT.
-- [ ] `ping 10.0.2.5` responde.
-- [ ] `nmap -sn 10.0.2.0/24` detecta la VM objetivo.
-- [ ] Capturas `01`, `02` y `03` tomadas y renombradas.
+- [ ] `ping 192.168.50.20` responde.
+- [ ] `nmap -sn 192.168.50.0/24` detecta la VM objetivo.
+- [ ] Capturas `02`, `03` y `04` tomadas.
 
 ---
 
@@ -192,13 +199,13 @@ nmap -sS -p- --min-rate 5000 10.0.2.5
 | `-sS` | **SYN scan (half-open):** envía paquetes SYN y no completa el handshake. Rápido y evita loguear conexiones completas. Requiere permisos root. |
 | `-p-` | Escanea **todos los puertos TCP** (1–65535). Un escaneo por defecto solo cubre los 1000 más comunes. |
 | `--min-rate 5000` | Garantiza un **mínimo de 5000 paquetes/segundo**, acelerando el escaneo (aceptable solo en red local). |
-| `10.0.2.5` | IP de la máquina objetivo. |
+| `192.168.50.20` | IP de la máquina objetivo. |
 
 **Salida esperada (fragmento):**
 
 ```text
 Starting Nmap 7.94 ( https://nmap.org ) at 2026-08-14 10:05 UTC
-Nmap scan report for 10.0.2.5
+Nmap scan report for 192.168.50.20
 Host is up (0.0005s latency).
 Not shown: 65506 closed tcp ports (reset)
 PORT      STATE SERVICE
@@ -227,12 +234,15 @@ PORT      STATE SERVICE
 
 > **Interpretación:** Metasploitable 2 expone 21+ servicios, muchos de ellos con versiones antiguas. Una superficie de ataque así es inaceptable en producción.
 
-> **`[CAPTURA_04: Resultados del escaneo de Nmap — salida completa de `nmap -sS -p- --min-rate 5000 10.0.2.5` mostrando los puertos abiertos]`**
+> **`CAPTURA_05: Resultados del escaneo de Nmap — salida completa de `nmap -sS -p- --min-rate 5000 10.0.2.5` mostrando los puertos abiertos`**
+
+![alt text](<Captura de pantalla 2026-08-14 174235.png>)
+
 
 ### 3.2 Escaneo de Servicios y Versiones
 
 ```bash
-nmap -sC -sV -p21,22,80,445,3306 10.0.2.5
+nmap -sC -sV -p21,22,80,445,3306 192.168.50.20
 ```
 
 **Explicación:**
@@ -256,7 +266,11 @@ PORT     STATE SERVICE     VERSION
 3306/tcp open  mysql       MySQL 5.0.51a-3ubuntu5
 ```
 
-> **`[CAPTURA_05a: Detección de versiones — salida de `nmap -sC -sV` con las versiones de vsftpd 2.3.4, OpenSSH 4.7p1 y Apache 2.2.8]`**
+> **`CAPTURA_05a: Detección de versiones — salida de `nmap -sC -sV` con las versiones de vsftpd 2.3.4, OpenSSH 4.7p1 y Apache 2.2.8`**
+
+![alt text](<Captura de pantalla 2026-08-14 175000.png>)
+![alt text](<Captura de pantalla 2026-08-14 175015.png>)
+
 
 ### 3.3 Análisis de Vulnerabilidades Identificadas
 
