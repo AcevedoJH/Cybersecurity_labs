@@ -2,9 +2,9 @@
 
 > **Documento técnico listo para producción** — Guía práctica para ejecutar un laboratorio completo de auditoría de vulnerabilidades, remediación y hardening en un entorno virtualizado aislado.
 >
-> **Autor:** Javier Acevedo H.
-> **Fecha de ejecución:** *(Completa)*
-> **Duración estimada:** 3–5 horas
+> **Autor:** Javier Acevedo H.<br>
+> **Fecha de ejecución:** 7 de Septiembre de 2026<br>
+> **Duración estimada:** 3–5 horas<br>
 > **Nivel:** Intermedio
 
 ---
@@ -50,7 +50,7 @@ Las organizaciones despliegan aplicaciones y servidores de forma acelerada, much
 | Recurso | Detalle |
 |---------|---------|
 | Hypervisor | HyperV (Utilizado), VirtualBox (recomendado) o VMware Workstation/Player. |
-| VM Atacante | **Kali Linux** 2024.x (o posterior), 2 GB RAM, 2 CPUs. |
+| VM Atacante | **Kali Linux** 2024.x (o posterior), 2 GB RAM, 2 CPUs (Mínimo). |
 | VM Objetivo | **Metasploitable 2** (VMware image), 512 MB–1 GB RAM, 1 CPU. |
 | Red | Modo NAT aislado (HyperV: `NAT` VirtualBox: `NAT`; VMware: `VMnet8` con DHCP). |
 | Host | Windows/Linux/macOS con soporte de virtualización (VT-x/AMD-V). |
@@ -66,7 +66,7 @@ flowchart LR
         end
     end
     K -- "Nmap / HTTP / FTP / SSH" --> T
-    K -- "Respuesta a paquetes" <-- T
+    K -- "Respuesta a paquetes" --> T
 ```
 
 > **Nota de seguridad:** No conectar esta red a internet ni compartirla con el adaptador físico. La red NAT del hipervisor no permite acceso entrante desde la LAN física, lo que mantiene el laboratorio aislado.
