@@ -66,7 +66,7 @@ flowchart LR
         end
     end
     K -- "Nmap / HTTP / FTP / SSH" --> T
-    K <-- "Respuesta a paquetes" -- T
+    K -- "Respuesta a paquetes" <--> T
 ```
 
 > **Nota de seguridad:** No conectar esta red a internet ni compartirla con el adaptador físico. La red NAT del hipervisor no permite acceso entrante desde la LAN física, lo que mantiene el laboratorio aislado.
