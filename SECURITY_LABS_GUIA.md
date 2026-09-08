@@ -379,8 +379,6 @@ En esta fase cambiamos de la óptica ofensiva a la **defensiva**: interpretamos 
 
 > **Conclusión de la matriz:** La prioridad de remediación es: **(1)** deshabilitar/eliminar los servicios comprometidos (FTP, Telnet, Samba vulnerable), **(2)** parchear o sustituir software EOL (Apache, MySQL), **(3)** endurecer servicios esenciales (SSH), y **(4)** aplicar firewall de red (ufw/iptables).
 
-> **`CAPTURA_06a: Matriz de riesgos exportada — tabla de evaluación de riesgos (Sección 4.2) exportada a PDF/PNG desde el gestor de documentación para el portafolio`**
-
 ### 4.4 Checklist de la Fase 3
 
 - [ ] Matriz de riesgos completada con scores CVSS.
@@ -545,7 +543,7 @@ sudo ufw status numbered
 
 > **`CAPTURA_06c: Política de firewall — salida de `sudo ufw status numbered` con las reglas de deny y allow listadas`**
 
-![alt text](<Captura de pantalla 2026-09-08 133802.png>)
+![alt text](<Captura de pantalla 2026-09-08 155800.png>)
 
 ### 5.7 Checklist de la Fase 4
 
@@ -584,7 +582,7 @@ PORT   STATE SERVICE
 
 > **`CAPTURA_07: Escaneo Nmap posterior demostrando el cierre del puerto/mitigación — salida del re-escaneo mostrando únicamente el puerto 22 abierto, comparada con la captura 04`**
 
-![alt text](<Captura de pantalla 2026-09-08 140250.png>)
+![alt text](<Captura de pantalla 2026-09-08 160211.png>)
 
 ### 6.2 Verificación de la Mitigación de la Vulnerabilidad
 
