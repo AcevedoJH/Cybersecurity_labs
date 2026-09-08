@@ -46,4 +46,4 @@ Proyecto exclusivamente educativo para uso en entorno local aislado. No utilizar
 
 ## Autor
 
-*(Completa con tu nombre y contacto / portafolio web)*
+**Javier Acevedo H. / https://acevedojavier.dev**
